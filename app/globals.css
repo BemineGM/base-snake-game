@@ -1,26 +1,196 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --base-blue: #0052FF;
+  --pixel-green: #4ADE80;
+  --pixel-cyan: #22D3EE;
+  --pixel-pink: #F472B6;
+  --pixel-yellow: #FACC15;
+  --pixel-purple: #A855F7;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  image-rendering: pixelated;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Press Start 2P', cursive;
+  background: linear-gradient(180deg, #87CEEB 0%, #98FB98 100%);
+  min-height: 100vh;
+}
+
+/* Стеклянные карточки */
+.glass-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Пиксельная кнопка */
+.pixel-button {
+  background: var(--base-blue);
+  color: white;
+  padding: 16px 32px;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 14px;
+  border: 4px solid #003399;
+  border-radius: 8px;
+  box-shadow:
+    0 6px 0 #003399,
+    0 8px 10px rgba(0, 0, 0, 0.3);
+  transition: all 0.1s;
+  cursor: pointer;
+}
+
+.pixel-button:hover {
+  transform: translateY(2px);
+  box-shadow:
+    0 4px 0 #003399,
+    0 6px 8px rgba(0, 0, 0, 0.3);
+}
+
+.pixel-button:active {
+  transform: translateY(4px);
+  box-shadow:
+    0 2px 0 #003399,
+    0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.pixel-button:disabled {
+  background: #666;
+  border-color: #444;
+  box-shadow: 0 4px 0 #444;
+  cursor: not-allowed;
+}
+
+/* Пиксельная кнопка зелёная */
+.pixel-button-green {
+  background: #22C55E;
+  border-color: #166534;
+  box-shadow: 0 6px 0 #166534, 0 8px 10px rgba(0, 0, 0, 0.3);
+}
+
+.pixel-button-green:hover {
+  box-shadow: 0 4px 0 #166534, 0 6px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Пиксельная кнопка жёлтая */
+.pixel-button-yellow {
+  background: #FACC15;
+  color: #000;
+  border-color: #A16207;
+  box-shadow: 0 6px 0 #A16207, 0 8px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Бустер карточки */
+.booster-card {
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  border: 4px solid rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 12px;
+  color: white;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 6px 0 rgba(0, 0, 0, 0.3),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.2);
+  transition: all 0.1s;
+  cursor: pointer;
+}
+
+.booster-card:hover {
+  transform: translateY(2px);
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.3),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Игровое поле */
+.game-field {
+  border: 6px solid #8B4513;
+  border-radius: 8px;
+  box-shadow:
+    0 8px 0 #5D3A1A,
+    0 12px 20px rgba(0, 0, 0, 0.3),
+    inset 0 0 20px rgba(0, 0, 0, 0.1);
+  background: #90EE90;
+}
+
+/* Пиксельная змейка */
+.snake-segment {
+  background: var(--base-blue);
+  border: 2px solid #003399;
+  box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.3), inset 2px 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.snake-head {
+  background: var(--base-blue);
+  border: 2px solid #003399;
+  box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.3), inset 2px 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Кристалл */
+.crystal {
+  width: 16px;
+  height: 16px;
+  background: var(--pixel-cyan);
+  border: 2px solid #0891B2;
+  box-shadow:
+    inset -2px -2px 0 rgba(0, 0, 0, 0.3),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.5),
+    0 0 10px var(--pixel-cyan);
+  animation: crystal-bounce 0.5s infinite alternate;
+}
+
+@keyframes crystal-bounce {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-4px); }
+}
+
+/* Лидерборд */
+.leaderboard-item {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(5px);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.leaderboard-item.gold {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.4), rgba(255, 215, 0, 0.2));
+  border-color: #FFD700;
+}
+
+.leaderboard-item.silver {
+  background: linear-gradient(135deg, rgba(192, 192, 192, 0.4), rgba(192, 192, 192, 0.2));
+  border-color: #C0C0C0;
+}
+
+.leaderboard-item.bronze {
+  background: linear-gradient(135deg, rgba(205, 127, 50, 0.4), rgba(205, 127, 50, 0.2));
+  border-color: #CD7F32;
+}
+
+/* Текст в пиксельном стиле */
+.pixel-text {
+  font-family: 'Press Start 2P', cursive;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.pixel-text-outline {
+  font-family: 'Press Start 2P', cursive;
+  -webkit-text-stroke: 2px #000;
+  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
 }
