@@ -10,6 +10,7 @@ type Position = { x: number; y: number };
 const GRID_SIZE = 12;
 const CELL_SIZE = 36;
 const GAME_SPEED = 280;
+const MAX_CRYSTALS = 10;
 
 export default function Game() {
   const { address, isConnected } = useAccount();
@@ -36,15 +37,11 @@ export default function Game() {
     args: address ? [address] : undefined,
   });
 
-  const isRegistered = playerData?.[0] ?? false;
   const lastDailyClaim = playerData?.[3] ?? BigInt(0);
   const currentMultiplier = multiplier ? Number(multiplier) / 100 : 1;
 
   const now = BigInt(Math.floor(Date.now() / 1000));
   const canClaimDaily = now - lastDailyClaim >= BigInt(86400);
-
-  const { data: registerHash, writeContract: register, isPending: isRegistering } = useWriteContract();
-  const { isLoading: isRegisterConfirming, isSuccess: isRegisterSuccess } = useWaitForTransactionReceipt({ hash: registerHash });
 
   const { data: submitHash, writeContract: submitGame, isPending: isSubmitting } = useWriteContract();
   const { isLoading: isSubmitConfirming, isSuccess: isSubmitSuccess } = useWaitForTransactionReceipt({ hash: submitHash });
@@ -53,16 +50,16 @@ export default function Game() {
   const { isLoading: isDailyConfirming, isSuccess: isDailySuccess } = useWaitForTransactionReceipt({ hash: dailyHash });
 
   useEffect(() => {
-    if (isRegisterSuccess || isSubmitSuccess || isDailySuccess) {
+    if (isSubmitSuccess || isDailySuccess) {
       refetch();
     }
-  }, [isRegisterSuccess, isSubmitSuccess, isDailySuccess, refetch]);
+  }, [isSubmitSuccess, isDailySuccess, refetch]);
 
   const generateInitialCrystals = useCallback(() => {
     const newCrystals: Position[] = [];
     const startSnake = { x: 6, y: 6 };
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < MAX_CRYSTALS; i++) {
       let crystal: Position;
       let attempts = 0;
       do {
@@ -82,15 +79,6 @@ export default function Game() {
   }, []);
 
   const startGame = () => {
-    if (!isRegistered) {
-      register({
-        address: CONTRACT_ADDRESS,
-        abi: CONTRACT_ABI,
-        functionName: 'registerPlayer',
-      });
-      return;
-    }
-
     setSnake([{ x: 6, y: 6 }]);
     setDirection('RIGHT');
     setNextDirection('RIGHT');
@@ -160,17 +148,19 @@ export default function Game() {
         const crystalIndex = crystals.findIndex(c => c.x === head.x && c.y === head.y);
 
         if (crystalIndex !== -1) {
-          setScore(prev => prev + 1);
-          setCrystals(prev => {
-            const updated = prev.filter((_, i) => i !== crystalIndex);
-            if (updated.length === 0) {
+          // Увеличиваем счёт только если меньше MAX_CRYSTALS
+          setScore(prev => {
+            const newScore = prev + 1;
+            // Если собрали все — конец игры
+            if (newScore >= MAX_CRYSTALS) {
               setTimeout(() => {
                 setGameOver(true);
                 setGameRunning(false);
               }, 100);
             }
-            return updated;
+            return Math.min(newScore, MAX_CRYSTALS);
           });
+          setCrystals(prev => prev.filter((_, i) => i !== crystalIndex));
           return newSnake;
         } else {
           newSnake.pop();
@@ -224,20 +214,21 @@ export default function Game() {
     return cells;
   };
 
-  const finalPoints = Math.floor(score * currentMultiplier);
+  // Ограничиваем score максимумом
+  const displayScore = Math.min(score, MAX_CRYSTALS);
+  const finalPoints = Math.floor(displayScore * currentMultiplier);
 
   return (
     <div className="flex flex-col items-center">
       {/* Счёт над игрой */}
-      <div className="flex gap-4 mb-4">
-        <div className="glass-card px-4 py-2">
-          <span className="pixel-text text-[8px] text-white/70">CRYSTALS </span>
-          <span className="pixel-text text-sm text-cyan-300">{score}/10</span>
-        </div>
-        <div className="glass-card px-4 py-2">
-          <span className="pixel-text text-[8px] text-white/70">POINTS </span>
-          <span className="pixel-text text-sm text-green-300">+{finalPoints}</span>
-        </div>
+      <div className="glass-card px-6 py-3 mb-6">
+        <span className="pixel-text text-[10px] text-white">CRYSTALS: </span>
+        <span className="pixel-text text-lg text-cyan-300">{displayScore}/{MAX_CRYSTALS}</span>
+        {currentMultiplier > 1 && (
+          <span className="pixel-text text-[10px] text-green-300 ml-4">
+            (x{currentMultiplier} = +{finalPoints})
+          </span>
+        )}
       </div>
 
       {/* Игровое поле */}
@@ -250,7 +241,6 @@ export default function Game() {
       >
         {renderGrid()}
 
-        {/* Змейка */}
         {snake.map((segment, index) => (
           <div
             key={`snake-${index}`}
@@ -267,7 +257,6 @@ export default function Game() {
           />
         ))}
 
-        {/* Кристаллы */}
         {crystals.map((crystal, index) => (
           <div
             key={`crystal-${index}`}
@@ -287,60 +276,114 @@ export default function Game() {
           </div>
         ))}
 
-        {/* Game Over */}
-        {gameOver && (
-          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
-            <p className="pixel-text text-2xl text-white mb-4">
-              {score === 10 ? 'YOU WIN!' : 'GAME OVER'}
-            </p>
-            <p className="pixel-text text-sm text-cyan-300 mb-2">CRYSTALS: {score}/10</p>
-            <p className="pixel-text text-lg text-green-300 mb-6">+{finalPoints} POINTS</p>
-
-            <button
-              onClick={handleSubmitScore}
-              disabled={isSubmitting || isSubmitConfirming || score === 0}
-              className="pixel-button pixel-button-green text-xs mb-3"
-            >
-              {isSubmitting || isSubmitConfirming ? 'SAVING...' : 'SAVE SCORE'}
-            </button>
-
-            {isSubmitSuccess && <p className="pixel-text text-xs text-green-300 mb-3">✓ SAVED!</p>}
-
-            <button onClick={startGame} className="pixel-text text-xs text-white/50 hover:text-white">
-              PLAY AGAIN
-            </button>
-          </div>
-        )}
-
-        {/* Start */}
+        {/* Start Screen */}
         {!gameRunning && !gameOver && (
-          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
-            <p className="pixel-text text-xs text-white mb-2">WASD OR ARROWS</p>
-            <p className="pixel-text text-[8px] text-white/50">COLLECT 10 CRYSTALS</p>
+          <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center z-20">
+            <p className="pixel-text text-[10px] text-white mb-2">WASD OR ARROWS</p>
+            <p className="pixel-text text-[8px] text-white/50">COLLECT {MAX_CRYSTALS} CRYSTALS</p>
           </div>
         )}
       </div>
 
       {/* Кнопки под игрой */}
-      <div className="flex gap-4 mt-6">
+      <div className="flex gap-6 mt-8">
         <button
           onClick={startGame}
-          disabled={isRegistering || isRegisterConfirming || gameRunning}
+          disabled={gameRunning}
           className="pixel-button text-sm"
         >
-          {isRegistering || isRegisterConfirming ? 'WAIT...' : '▶ PLAY'}
+          ▶ PLAY
         </button>
 
-        {isRegistered && (
-          <button
-            onClick={handleClaimDaily}
-            disabled={!canClaimDaily || isDailyPending || isDailyConfirming}
-            className="pixel-button pixel-button-yellow text-xs"
-          >
-            {isDailyPending || isDailyConfirming ? '...' : canClaimDaily ? '🎁 DAILY' : '✓ CLAIMED'}
-          </button>
-        )}
+        <button
+          onClick={handleClaimDaily}
+          disabled={!canClaimDaily || isDailyPending || isDailyConfirming}
+          className="pixel-button text-[10px]"
+          style={{
+            backgroundColor: canClaimDaily ? '#FACC15' : '#666',
+            borderColor: canClaimDaily ? '#A16207' : '#444',
+            boxShadow: canClaimDaily ? '0 6px 0 #A16207' : '0 6px 0 #444',
+            color: canClaimDaily ? '#000' : '#999',
+          }}
+        >
+          {isDailyPending || isDailyConfirming ? '...' : canClaimDaily ? '🎁 DAILY' : 'CLAIMED ✓'}
+        </button>
       </div>
+
+      {/* Game Over Modal - ФИКСИРОВАННЫЙ ПО ЦЕНТРУ ЭКРАНА */}
+      {gameOver && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+        >
+          <div
+            className="flex flex-col items-center p-8"
+            style={{
+              background: 'linear-gradient(180deg, #2D3748 0%, #1A202C 100%)',
+              border: '4px solid #4A5568',
+              borderRadius: '16px',
+              boxShadow: '0 10px 0 #1A202C, 0 15px 30px rgba(0,0,0,0.5)',
+              minWidth: '300px',
+            }}
+          >
+            {/* Заголовок */}
+            <div
+              className="px-8 py-3 -mt-12 mb-6"
+              style={{
+                background: displayScore === MAX_CRYSTALS ? '#48BB78' : '#E53E3E',
+                border: '4px solid #000',
+                borderRadius: '8px',
+                boxShadow: '0 4px 0 #000',
+              }}
+            >
+              <p className="pixel-text text-base text-white">
+                {displayScore === MAX_CRYSTALS ? '🎉 YOU WIN!' : '💀 GAME OVER'}
+              </p>
+            </div>
+
+            {/* Результаты */}
+            <div className="text-center mb-4">
+              <p className="pixel-text text-[10px] text-gray-400 mb-2">CRYSTALS</p>
+              <p className="pixel-text text-2xl text-cyan-300">{displayScore}/{MAX_CRYSTALS}</p>
+            </div>
+
+            <div
+              className="text-center mb-6 px-8 py-4"
+              style={{
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '8px',
+              }}
+            >
+              <p className="pixel-text text-[10px] text-gray-400 mb-2">POINTS EARNED</p>
+              <p className="pixel-text text-3xl text-green-400">+{finalPoints}</p>
+            </div>
+
+            {/* Кнопки */}
+            <div className="flex flex-col gap-4 w-full">
+              <button
+                onClick={handleSubmitScore}
+                disabled={isSubmitting || isSubmitConfirming || displayScore === 0}
+                className="pixel-button pixel-button-green text-xs w-full"
+                style={{ padding: '14px 20px' }}
+              >
+                {isSubmitting || isSubmitConfirming ? '⏳ SAVING...' : '💾 SAVE SCORE'}
+              </button>
+
+              {isSubmitSuccess && (
+                <p className="pixel-text text-[10px] text-green-400 text-center">✓ SAVED!</p>
+              )}
+
+              <button
+                onClick={startGame}
+                className="pixel-button text-xs w-full"
+                style={{ padding: '14px 20px' }}
+              >
+                🔄 PLAY AGAIN
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
