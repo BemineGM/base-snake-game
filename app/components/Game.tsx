@@ -24,8 +24,8 @@ export default function Game() {
   const [score, setScore] = useState(0);
   const [gameRunning, setGameRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
-  const [waitingForPayment, setWaitingForPayment] = useState(false);
-  const [pendingScore, setPendingScore] = useState(0);
+  const [waitingToPay, setWaitingToPay] = useState(false);
+  const [shouldStartGame, setShouldStartGame] = useState(false);
 
   const { data: playerData, refetch } = useReadContract({
     address: CONTRACT_ADDRESS,
@@ -42,28 +42,29 @@ export default function Game() {
   });
 
   const isRegistered = playerData?.[0] ?? false;
-  const totalPoints = playerData?.[1] ?? BigInt(0);
   const dailyStreak = playerData?.[3] ?? BigInt(0);
   const bestMultiplier = playerData?.[5] ?? BigInt(100);
   const currentMultiplier = Number(bestMultiplier) / 100;
   const canClaimDaily = canClaim ?? false;
 
-  const { writeContract: playGame, isPending: isPlayPending, data: playHash } = useWriteContract();
-  const { isLoading: isPlayConfirming, isSuccess: isPlaySuccess } = useWaitForTransactionReceipt({ hash: playHash });
+  // Оплата игры
+  const { writeContract: payForGame, isPending: isPayPending, data: payHash } = useWriteContract();
+  const { isLoading: isPayConfirming, isSuccess: isPaySuccess } = useWaitForTransactionReceipt({ hash: payHash });
 
+  // Daily
   const { writeContract: claimDaily, isPending: isDailyPending, data: dailyHash } = useWriteContract();
   const { isLoading: isDailyConfirming, isSuccess: isDailySuccess } = useWaitForTransactionReceipt({ hash: dailyHash });
 
-  // После успешной оплаты игры
+  // После успешной оплаты — запускаем игру
   useEffect(() => {
-    if (isPlaySuccess) {
+    if (isPaySuccess && shouldStartGame) {
       refetch();
       refetchDaily();
-      setWaitingForPayment(false);
-      setGameOver(false);
-      setPendingScore(0);
+      setWaitingToPay(false);
+      setShouldStartGame(false);
+      actuallyStartGame();
     }
-  }, [isPlaySuccess, refetch, refetchDaily]);
+  }, [isPaySuccess, shouldStartGame]);
 
   useEffect(() => {
     if (isDailySuccess) {
@@ -95,24 +96,38 @@ export default function Game() {
     return newCrystals;
   }, []);
 
-  // Начать игру — сразу запускаем, оплата при сохранении
-  const startGame = () => {
+  // Реальный запуск игры после оплаты
+  const actuallyStartGame = () => {
     setSnake([{ x: 6, y: 6 }]);
     setDirection('RIGHT');
     setNextDirection('RIGHT');
     setScore(0);
     setGameOver(false);
-    setWaitingForPayment(false);
     setCrystals(generateInitialCrystals());
     setGameRunning(true);
   };
 
-  // Сохранить и оплатить
-  const handleSaveAndPay = () => {
-    setPendingScore(score);
-    setWaitingForPayment(true);
+  // Нажатие PLAY — сначала оплата
+  const handlePlay = () => {
+    setWaitingToPay(true);
+    setShouldStartGame(true);
 
-    playGame({
+    payForGame({
+      address: CONTRACT_ADDRESS,
+      abi: CONTRACT_ABI,
+      functionName: 'playGame',
+      args: [BigInt(0)], // 0 кристаллов — просто оплата за игру
+      value: parseEther(ACTION_PRICE),
+      gas: BigInt(200000),
+    });
+  };
+
+  // Сохранить результат (после game over)
+  const handleSaveScore = () => {
+    setWaitingToPay(true);
+    setShouldStartGame(false);
+
+    payForGame({
       address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
       functionName: 'playGame',
@@ -120,6 +135,12 @@ export default function Game() {
       value: parseEther(ACTION_PRICE),
       gas: BigInt(200000),
     });
+  };
+
+  // Play Again — тоже платно
+  const handlePlayAgain = () => {
+    setGameOver(false);
+    handlePlay();
   };
 
   const closeGameOver = () => {
@@ -245,7 +266,7 @@ export default function Game() {
 
   const displayScore = Math.min(score, MAX_CRYSTALS);
   const finalPoints = Math.floor(displayScore * currentMultiplier);
-  const isLoading = isPlayPending || isPlayConfirming || isDailyPending || isDailyConfirming;
+  const isLoading = isPayPending || isPayConfirming || isDailyPending || isDailyConfirming || waitingToPay;
   const nextDailyReward = Number(dailyStreak) + 1;
 
   return (
@@ -311,6 +332,9 @@ export default function Game() {
           <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center z-20">
             <p className="pixel-text text-[10px] text-white mb-2">WASD OR ARROWS</p>
             <p className="pixel-text text-[8px] text-white/50">COLLECT {MAX_CRYSTALS} CRYSTALS</p>
+            {isLoading && (
+              <p className="pixel-text text-[8px] text-yellow-300 mt-4">⏳ CONFIRMING...</p>
+            )}
           </div>
         )}
       </div>
@@ -318,11 +342,11 @@ export default function Game() {
       {/* Кнопки под игрой */}
       <div className="flex gap-6 mt-8">
         <button
-          onClick={startGame}
+          onClick={handlePlay}
           disabled={gameRunning || isLoading}
           className="pixel-button text-sm"
         >
-          ▶ PLAY
+          {isLoading && shouldStartGame ? '⏳ ...' : '▶ PLAY (1¢)'}
         </button>
 
         <button
@@ -336,7 +360,7 @@ export default function Game() {
             color: canClaimDaily && isRegistered ? '#000' : '#999',
           }}
         >
-          {isLoading ? '...' : canClaimDaily ? `🎁 +${nextDailyReward}` : `🔥 ${dailyStreak.toString()}`}
+          {isDailyPending || isDailyConfirming ? '...' : canClaimDaily ? `🎁 +${nextDailyReward} (1¢)` : `🔥 ${dailyStreak.toString()}`}
         </button>
       </div>
 
@@ -406,24 +430,25 @@ export default function Game() {
             {/* Кнопки */}
             <div className="flex flex-col gap-4 w-full">
               <button
-                onClick={handleSaveAndPay}
+                onClick={handleSaveScore}
                 disabled={isLoading || displayScore === 0}
                 className="pixel-button pixel-button-green text-xs w-full"
                 style={{ padding: '14px 20px' }}
               >
-                {isLoading ? '⏳ SAVING...' : '💾 SAVE (~1¢)'}
+                {isLoading && !shouldStartGame ? '⏳ SAVING...' : '💾 SAVE (1¢)'}
               </button>
 
-              {isPlaySuccess && (
+              {isPaySuccess && !shouldStartGame && (
                 <p className="pixel-text text-[10px] text-green-400 text-center">✓ SAVED!</p>
               )}
 
               <button
-                onClick={startGame}
+                onClick={handlePlayAgain}
+                disabled={isLoading}
                 className="pixel-button text-xs w-full"
                 style={{ padding: '14px 20px' }}
               >
-                🔄 PLAY AGAIN
+                {isLoading && shouldStartGame ? '⏳ ...' : '🔄 PLAY AGAIN (1¢)'}
               </button>
             </div>
           </div>
