@@ -47,15 +47,12 @@ export default function Game() {
   const currentMultiplier = Number(bestMultiplier) / 100;
   const canClaimDaily = canClaim ?? false;
 
-  // Оплата игры
   const { writeContract: payForGame, isPending: isPayPending, data: payHash, reset: resetPay } = useWriteContract();
   const { isLoading: isPayConfirming, isSuccess: isPaySuccess } = useWaitForTransactionReceipt({ hash: payHash });
 
-  // Daily
   const { writeContract: claimDaily, isPending: isDailyPending, data: dailyHash } = useWriteContract();
   const { isLoading: isDailyConfirming, isSuccess: isDailySuccess } = useWaitForTransactionReceipt({ hash: dailyHash });
 
-  // После успешной оплаты — запускаем игру
   useEffect(() => {
     if (isPaySuccess && shouldStartGame) {
       refetch();
@@ -65,7 +62,6 @@ export default function Game() {
       actuallyStartGame();
     }
     if (isPaySuccess && !shouldStartGame) {
-      // Это был save score
       refetch();
       refetchDaily();
       setWaitingToPay(false);
@@ -102,7 +98,6 @@ export default function Game() {
     return newCrystals;
   }, []);
 
-  // Реальный запуск игры после оплаты
   const actuallyStartGame = () => {
     setSnake([{ x: 6, y: 6 }]);
     setDirection('RIGHT');
@@ -113,7 +108,6 @@ export default function Game() {
     setGameRunning(true);
   };
 
-  // Нажатие PLAY — сначала оплата
   const handlePlay = () => {
     if (resetPay) resetPay();
     setWaitingToPay(true);
@@ -129,7 +123,6 @@ export default function Game() {
     });
   };
 
-  // Сохранить результат (после game over)
   const handleSaveScore = () => {
     if (resetPay) resetPay();
     setWaitingToPay(true);
@@ -145,7 +138,6 @@ export default function Game() {
     });
   };
 
-  // Play Again — тоже платно
   const handlePlayAgain = () => {
     setGameOver(false);
     handlePlay();
@@ -334,17 +326,6 @@ export default function Game() {
             <div className="crystal" />
           </div>
         ))}
-
-        {/* Start Screen */}
-        {!gameRunning && !gameOver && (
-          <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center z-20">
-            <p className="pixel-text text-[10px] text-white mb-2">WASD OR ARROWS</p>
-            <p className="pixel-text text-[8px] text-white/50">COLLECT {MAX_CRYSTALS} CRYSTALS</p>
-            {waitingToPay && (
-              <p className="pixel-text text-[8px] text-yellow-300 mt-4">⏳ CONFIRMING...</p>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Кнопки под игрой */}
@@ -388,24 +369,18 @@ export default function Game() {
               minWidth: '300px',
             }}
           >
-            {/* Кнопка закрытия */}
+            {/* Кнопка закрытия - в углу справа */}
             <button
               onClick={closeGameOver}
-              className="absolute -top-3 -right-3 w-10 h-10 flex items-center justify-center pixel-text text-white hover:scale-110 transition-transform"
-              style={{
-                backgroundColor: '#E53E3E',
-                border: '3px solid #000',
-                borderRadius: '8px',
-                boxShadow: '0 3px 0 #000',
-                fontSize: '16px',
-              }}
+              className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center pixel-text text-white/50 hover:text-white hover:scale-110 transition-all"
+              style={{ fontSize: '18px' }}
             >
               ✕
             </button>
 
             {/* Заголовок */}
             <div
-              className="px-8 py-3 -mt-12 mb-6"
+              className="px-8 py-3 mb-6"
               style={{
                 background: displayScore === MAX_CRYSTALS ? '#48BB78' : '#E53E3E',
                 border: '4px solid #000',
