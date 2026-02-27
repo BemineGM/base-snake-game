@@ -6,80 +6,74 @@ import { parseEther } from 'viem';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../contracts/abi';
 
 const BOOSTERS = [
-  { id: 1, multiplier: 'x1.2', color: '#A855F7', shadow: '#7C3AED', price: '0.0001' },
-  { id: 2, multiplier: 'x1.5', color: '#EC4899', shadow: '#BE185D', price: '0.0002' },
-  { id: 3, multiplier: 'x2.0', color: '#FACC15', shadow: '#A16207', price: '0.0005' },
+  { id: 1, multiplier: 'x1.2', color: '#A855F7', shadow: '#7C3AED' },
+  { id: 2, multiplier: 'x1.5', color: '#EC4899', shadow: '#BE185D' },
+  { id: 3, multiplier: 'x2.0', color: '#FACC15', shadow: '#A16207' },
 ];
+
+const BOOSTER_PRICE = '0.0001';
 
 export default function Boosters() {
   const { address, isConnected } = useAccount();
 
-  const { data: playerData, refetch } = useReadContract({
+  const { data: playerData, refetch: refetchPlayer } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: CONTRACT_ABI,
     functionName: 'getPlayer',
     args: address ? [address] : undefined,
   });
 
-  // Регистрация
-  const { writeContract: registerPlayer, isPending: isRegistering, data: registerHash } = useWriteContract();
-  const { isSuccess: isRegisterSuccess } = useWaitForTransactionReceipt({ hash: registerHash });
+  const { data: boostersData, refetch: refetchBoosters } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CONTRACT_ABI,
+    functionName: 'getPlayerBoosters',
+    args: address ? [address] : undefined,
+  });
 
-  // Mint Booster
-  const { writeContract: mintBooster, isPending: isMinting, data: mintHash } = useWriteContract();
-  const { isLoading: isMintConfirming, isSuccess: isMintSuccess } = useWaitForTransactionReceipt({ hash: mintHash });
+  const { writeContract: mintBooster, isPending, data: mintHash } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: mintHash });
 
   useEffect(() => {
-    if (isRegisterSuccess || isMintSuccess) {
-      refetch();
+    if (isSuccess) {
+      refetchPlayer();
+      refetchBoosters();
     }
-  }, [isRegisterSuccess, isMintSuccess, refetch]);
+  }, [isSuccess, refetchPlayer, refetchBoosters]);
 
   const isRegistered = playerData?.[0] ?? false;
-  const ownedNFTs = playerData?.[5] ?? [];
-  const ownedCount = Array.isArray(ownedNFTs) ? ownedNFTs.length : 0;
+  const ownedBoosters = boostersData ?? [];
 
-  const handleMint = (boosterId: number, price: string) => {
-    // Если не зарегистрирован — сначала регистрируемся
-    if (!isRegistered) {
-      registerPlayer({
-        address: CONTRACT_ADDRESS,
-        abi: CONTRACT_ABI,
-        functionName: 'registerPlayer',
-      });
-      return;
-    }
-
+  const handleMint = (boosterId: number) => {
     mintBooster({
       address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
-      functionName: 'mintBoosterNFT',
+      functionName: 'mintBooster',
       args: [BigInt(boosterId)],
-      value: parseEther(price),
+      value: parseEther(BOOSTER_PRICE),
     });
   };
 
   if (!isConnected) return null;
 
-  const isLoading = isRegistering || isMinting || isMintConfirming;
+  const isLoading = isPending || isConfirming;
 
   return (
     <div className="flex flex-col gap-4">
       {BOOSTERS.map((booster) => {
-        const owned = ownedCount >= booster.id;
+        const owned = Array.isArray(ownedBoosters) && ownedBoosters.includes(BigInt(booster.id));
 
         return (
           <button
             key={booster.id}
-            onClick={() => !owned && !isLoading && handleMint(booster.id, booster.price)}
-            disabled={owned || isLoading}
+            onClick={() => !owned && !isLoading && isRegistered && handleMint(booster.id)}
+            disabled={owned || isLoading || !isRegistered}
             className="booster-card"
             style={{
               backgroundColor: owned ? booster.color : '#666',
               boxShadow: owned
                 ? `0 6px 0 ${booster.shadow}, inset 0 -4px 0 rgba(0,0,0,0.2), 0 0 20px ${booster.color}`
                 : `0 6px 0 #444, inset 0 -4px 0 rgba(0,0,0,0.2)`,
-              cursor: owned || isLoading ? 'default' : 'pointer',
+              cursor: owned || isLoading || !isRegistered ? 'default' : 'pointer',
               opacity: isLoading ? 0.5 : 1,
             }}
           >
