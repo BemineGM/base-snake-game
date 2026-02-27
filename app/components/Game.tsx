@@ -22,6 +22,8 @@ export default function Game() {
   const [score, setScore] = useState(0);
   const [gameRunning, setGameRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const [needsRegistration, setNeedsRegistration] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const { data: playerData, refetch } = useReadContract({
     address: CONTRACT_ADDRESS,
@@ -37,17 +39,53 @@ export default function Game() {
     args: address ? [address] : undefined,
   });
 
+  const isRegistered = playerData?.[0] ?? false;
   const lastDailyClaim = playerData?.[3] ?? BigInt(0);
   const currentMultiplier = multiplier ? Number(multiplier) / 100 : 1;
 
   const now = BigInt(Math.floor(Date.now() / 1000));
   const canClaimDaily = now - lastDailyClaim >= BigInt(86400);
 
-  const { data: submitHash, writeContract: submitGame, isPending: isSubmitting } = useWriteContract();
+  // Регистрация
+  const { writeContract: registerPlayer, isPending: isRegistering, data: registerHash } = useWriteContract();
+  const { isSuccess: isRegisterSuccess } = useWaitForTransactionReceipt({ hash: registerHash });
+
+  // Submit Score
+  const { writeContract: submitGame, isPending: isSubmitting, data: submitHash } = useWriteContract();
   const { isLoading: isSubmitConfirming, isSuccess: isSubmitSuccess } = useWaitForTransactionReceipt({ hash: submitHash });
 
-  const { data: dailyHash, writeContract: claimDaily, isPending: isDailyPending } = useWriteContract();
+  // Daily
+  const { writeContract: claimDaily, isPending: isDailyPending, data: dailyHash } = useWriteContract();
   const { isLoading: isDailyConfirming, isSuccess: isDailySuccess } = useWaitForTransactionReceipt({ hash: dailyHash });
+
+  // После успешной регистрации — выполняем отложенное действие
+  useEffect(() => {
+    if (isRegisterSuccess) {
+      refetch();
+      setNeedsRegistration(false);
+
+      // Выполняем отложенное действие
+      if (pendingAction === 'daily') {
+        setTimeout(() => {
+          claimDaily({
+            address: CONTRACT_ADDRESS,
+            abi: CONTRACT_ABI,
+            functionName: 'claimDailyReward',
+          });
+        }, 1000);
+      } else if (pendingAction === 'submit') {
+        setTimeout(() => {
+          submitGame({
+            address: CONTRACT_ADDRESS,
+            abi: CONTRACT_ABI,
+            functionName: 'submitGame',
+            args: [BigInt(score)],
+          });
+        }, 1000);
+      }
+      setPendingAction(null);
+    }
+  }, [isRegisterSuccess]);
 
   useEffect(() => {
     if (isSubmitSuccess || isDailySuccess) {
@@ -148,10 +186,8 @@ export default function Game() {
         const crystalIndex = crystals.findIndex(c => c.x === head.x && c.y === head.y);
 
         if (crystalIndex !== -1) {
-          // Увеличиваем счёт только если меньше MAX_CRYSTALS
           setScore(prev => {
             const newScore = prev + 1;
-            // Если собрали все — конец игры
             if (newScore >= MAX_CRYSTALS) {
               setTimeout(() => {
                 setGameOver(true);
@@ -172,7 +208,24 @@ export default function Game() {
     return () => clearInterval(gameLoop);
   }, [gameRunning, gameOver, nextDirection, crystals]);
 
+  // Регистрация
+  const doRegister = (action: string) => {
+    setPendingAction(action);
+    setNeedsRegistration(true);
+    registerPlayer({
+      address: CONTRACT_ADDRESS,
+      abi: CONTRACT_ABI,
+      functionName: 'registerPlayer',
+    });
+  };
+
+  // Submit Score
   const handleSubmitScore = () => {
+    if (!isRegistered) {
+      doRegister('submit');
+      return;
+    }
+
     submitGame({
       address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
@@ -181,7 +234,13 @@ export default function Game() {
     });
   };
 
+  // Daily
   const handleClaimDaily = () => {
+    if (!isRegistered) {
+      doRegister('daily');
+      return;
+    }
+
     claimDaily({
       address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
@@ -214,9 +273,9 @@ export default function Game() {
     return cells;
   };
 
-  // Ограничиваем score максимумом
   const displayScore = Math.min(score, MAX_CRYSTALS);
   const finalPoints = Math.floor(displayScore * currentMultiplier);
+  const isLoading = isRegistering || isSubmitting || isSubmitConfirming || isDailyPending || isDailyConfirming;
 
   return (
     <div className="flex flex-col items-center">
@@ -297,7 +356,7 @@ export default function Game() {
 
         <button
           onClick={handleClaimDaily}
-          disabled={!canClaimDaily || isDailyPending || isDailyConfirming}
+          disabled={!canClaimDaily || isLoading}
           className="pixel-button text-[10px]"
           style={{
             backgroundColor: canClaimDaily ? '#FACC15' : '#666',
@@ -306,11 +365,11 @@ export default function Game() {
             color: canClaimDaily ? '#000' : '#999',
           }}
         >
-          {isDailyPending || isDailyConfirming ? '...' : canClaimDaily ? '🎁 DAILY' : 'CLAIMED ✓'}
+          {isLoading && pendingAction === 'daily' ? '...' : canClaimDaily ? '🎁 DAILY' : 'CLAIMED ✓'}
         </button>
       </div>
 
-      {/* Game Over Modal - ФИКСИРОВАННЫЙ ПО ЦЕНТРУ ЭКРАНА */}
+      {/* Game Over Modal */}
       {gameOver && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50"
@@ -362,11 +421,11 @@ export default function Game() {
             <div className="flex flex-col gap-4 w-full">
               <button
                 onClick={handleSubmitScore}
-                disabled={isSubmitting || isSubmitConfirming || displayScore === 0}
+                disabled={isLoading || displayScore === 0}
                 className="pixel-button pixel-button-green text-xs w-full"
                 style={{ padding: '14px 20px' }}
               >
-                {isSubmitting || isSubmitConfirming ? '⏳ SAVING...' : '💾 SAVE SCORE'}
+                {isLoading ? '⏳ WAIT...' : '💾 SAVE SCORE'}
               </button>
 
               {isSubmitSuccess && (
