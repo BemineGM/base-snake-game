@@ -1,16 +1,16 @@
 {
   "accountAssociation": {
     "header": "eyJmaWQiOjEyMzQ1NiwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDEyMzQ1Njc4OTAifQ",
-    "payload": "eyJkb21haW4iOiJiYXNlLXNuYWtlLWdhbWUubmV0bGlmeS5hcHAifQ",
+    "payload": "eyJkb21haW4iOiJiYXNlLXNuYWtlLm5ldGxpZnkuYXBwIn0",
     "signature": "placeholder"
   },
   "frame": {
     "version": "1",
     "name": "Base Snake",
-    "iconUrl": "https://base-snake-game.netlify.app/icon.png",
-    "homeUrl": "https://base-snake-game.netlify.app",
-    "splashImageUrl": "https://base-snake-game.netlify.app/splash.png",
+    "iconUrl": "https://base-snake.netlify.app/icon.png",
+    "homeUrl": "https://base-snake.netlify.app",
+    "splashImageUrl": "https://base-snake.netlify.app/splash.png",
     "splashBackgroundColor": "#0052FF",
-    "webhookUrl": "https://base-snake-game.netlify.app/api/webhook"
+    "webhookUrl": "https://base-snake.netlify.app/api/webhook"
   }
 }
