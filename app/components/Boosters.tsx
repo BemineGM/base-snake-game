@@ -50,6 +50,7 @@ export default function Boosters() {
       functionName: 'mintBooster',
       args: [BigInt(boosterId)],
       value: parseEther(BOOSTER_PRICE),
+      gas: BigInt(200000),
     });
   };
 
@@ -60,7 +61,7 @@ export default function Boosters() {
   return (
     <div className="flex flex-col gap-4">
       {BOOSTERS.map((booster) => {
-        const owned = Array.isArray(ownedBoosters) && ownedBoosters.includes(BigInt(booster.id));
+        const owned = Array.isArray(ownedBoosters) && ownedBoosters.some(b => Number(b) === booster.id);
 
         return (
           <button

@@ -182,6 +182,7 @@ export default function Game() {
       abi: CONTRACT_ABI,
       functionName: 'submitGame',
       args: [BigInt(score)],
+      gas: BigInt(200000),
     });
   };
 
@@ -190,6 +191,7 @@ export default function Game() {
       address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
       functionName: 'claimDailyReward',
+      gas: BigInt(200000),
     });
   };
 
