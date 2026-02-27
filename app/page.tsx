@@ -33,7 +33,7 @@ export default function Home() {
     <main className="min-h-screen p-8">
       {/* Header */}
       <div className="flex justify-between items-center mb-10">
-        <h1 className="text-xl pixel-text-outline text-white">🐍 BASE SNAKE</h1>
+        <h1 className="text-xl pixel-text-outline text-white tracking-wider">🐍 B A S E &nbsp; S N A K E</h1>
 
         <div className="flex items-center gap-6">
           {isConnected && isRegistered && (
@@ -43,19 +43,12 @@ export default function Home() {
             </div>
           )}
 
-          {isConnected ? (
+          {isConnected && (
             <button
               onClick={() => disconnect()}
               className="glass-card px-3 py-2 pixel-text text-[8px] text-white hover:bg-white/20"
             >
               {address?.slice(0, 6)}...{address?.slice(-4)}
-            </button>
-          ) : (
-            <button
-              onClick={handleConnect}
-              className="pixel-button text-xs"
-            >
-              CONNECT
             </button>
           )}
         </div>
@@ -64,20 +57,20 @@ export default function Home() {
       {!isConnected ? (
         <div className="flex flex-col items-center justify-center min-h-[80vh] gap-8">
           <div className="text-8xl animate-bounce">🐍</div>
-          <h2 className="text-3xl pixel-text-outline text-white text-center">BASE SNAKE</h2>
-          <p className="glass-card p-4 text-center text-white pixel-text text-[10px] leading-6 max-w-md">
+          <h2 className="text-3xl pixel-text-outline text-white text-center tracking-widest">B A S E &nbsp; S N A K E</h2>
+          <p className="glass-card p-4 text-center text-white pixel-text text-[10px] leading-7 max-w-md tracking-wide">
             Collect crystals, earn points, buy boosters and compete!
           </p>
           <button
             onClick={handleConnect}
             className="pixel-button text-lg"
           >
-            ▶ PLAY
+            ▶ P L A Y
           </button>
         </div>
       ) : (
-        <div className="flex justify-center items-start gap-12">
-          {/* Boosters - слева */}
+        <div className="flex justify-center items-start gap-16">
+          {/* Boosters - слева с отступом */}
           <div className="pt-10">
             <Boosters />
           </div>
@@ -87,7 +80,7 @@ export default function Home() {
             <Game />
           </div>
 
-          {/* Leaderboard - справа */}
+          {/* Leaderboard - справа с отступом */}
           <div className="w-64 pt-10">
             <Leaderboard />
           </div>

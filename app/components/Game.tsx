@@ -48,7 +48,7 @@ export default function Game() {
   const canClaimDaily = canClaim ?? false;
 
   // Оплата игры
-  const { writeContract: payForGame, isPending: isPayPending, data: payHash } = useWriteContract();
+  const { writeContract: payForGame, isPending: isPayPending, data: payHash, reset: resetPay } = useWriteContract();
   const { isLoading: isPayConfirming, isSuccess: isPaySuccess } = useWaitForTransactionReceipt({ hash: payHash });
 
   // Daily
@@ -63,6 +63,12 @@ export default function Game() {
       setWaitingToPay(false);
       setShouldStartGame(false);
       actuallyStartGame();
+    }
+    if (isPaySuccess && !shouldStartGame) {
+      // Это был save score
+      refetch();
+      refetchDaily();
+      setWaitingToPay(false);
     }
   }, [isPaySuccess, shouldStartGame]);
 
@@ -109,6 +115,7 @@ export default function Game() {
 
   // Нажатие PLAY — сначала оплата
   const handlePlay = () => {
+    if (resetPay) resetPay();
     setWaitingToPay(true);
     setShouldStartGame(true);
 
@@ -116,7 +123,7 @@ export default function Game() {
       address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
       functionName: 'playGame',
-      args: [BigInt(0)], // 0 кристаллов — просто оплата за игру
+      args: [BigInt(0)],
       value: parseEther(ACTION_PRICE),
       gas: BigInt(200000),
     });
@@ -124,6 +131,7 @@ export default function Game() {
 
   // Сохранить результат (после game over)
   const handleSaveScore = () => {
+    if (resetPay) resetPay();
     setWaitingToPay(true);
     setShouldStartGame(false);
 
@@ -266,7 +274,7 @@ export default function Game() {
 
   const displayScore = Math.min(score, MAX_CRYSTALS);
   const finalPoints = Math.floor(displayScore * currentMultiplier);
-  const isLoading = isPayPending || isPayConfirming || isDailyPending || isDailyConfirming || waitingToPay;
+  const isLoading = isPayPending || isPayConfirming || isDailyPending || isDailyConfirming;
   const nextDailyReward = Number(dailyStreak) + 1;
 
   return (
@@ -332,7 +340,7 @@ export default function Game() {
           <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center z-20">
             <p className="pixel-text text-[10px] text-white mb-2">WASD OR ARROWS</p>
             <p className="pixel-text text-[8px] text-white/50">COLLECT {MAX_CRYSTALS} CRYSTALS</p>
-            {isLoading && (
+            {waitingToPay && (
               <p className="pixel-text text-[8px] text-yellow-300 mt-4">⏳ CONFIRMING...</p>
             )}
           </div>
@@ -360,7 +368,7 @@ export default function Game() {
             color: canClaimDaily && isRegistered ? '#000' : '#999',
           }}
         >
-          {isDailyPending || isDailyConfirming ? '...' : canClaimDaily ? `🎁 +${nextDailyReward} (1¢)` : `🔥 ${dailyStreak.toString()}`}
+          {isDailyPending || isDailyConfirming ? '...' : canClaimDaily ? `🔥 Daily Check-In (+${nextDailyReward})` : `🔥 ${dailyStreak.toString()}`}
         </button>
       </div>
 
