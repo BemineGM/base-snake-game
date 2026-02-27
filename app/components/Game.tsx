@@ -334,13 +334,19 @@ export default function Game() {
             }}
           >
             {/* Кнопка закрытия */}
-            <button
-              onClick={closeGameOver}
-              className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center text-white/50 hover:text-white"
-              style={{ fontSize: '20px' }}
-            >
-              ✕
-            </button>
+<button
+  onClick={closeGameOver}
+  className="absolute -top-3 -right-3 w-10 h-10 flex items-center justify-center pixel-text text-white hover:scale-110 transition-transform"
+  style={{
+    backgroundColor: '#E53E3E',
+    border: '3px solid #000',
+    borderRadius: '8px',
+    boxShadow: '0 3px 0 #000',
+    fontSize: '16px',
+  }}
+>
+  ✕
+</button>
 
             {/* Заголовок */}
             <div
