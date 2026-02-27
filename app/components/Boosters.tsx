@@ -40,7 +40,6 @@ export default function Boosters() {
     }
   }, [isSuccess, refetchPlayer, refetchBoosters]);
 
-  const isRegistered = playerData?.[0] ?? false;
   const ownedBoosters = boostersData ?? [];
 
   const handleMint = (boosterId: number) => {
@@ -66,15 +65,15 @@ export default function Boosters() {
         return (
           <button
             key={booster.id}
-            onClick={() => !owned && !isLoading && isRegistered && handleMint(booster.id)}
-            disabled={owned || isLoading || !isRegistered}
+            onClick={() => !owned && !isLoading && handleMint(booster.id)}
+            disabled={owned || isLoading}
             className="booster-card"
             style={{
               backgroundColor: owned ? booster.color : '#666',
               boxShadow: owned
                 ? `0 6px 0 ${booster.shadow}, inset 0 -4px 0 rgba(0,0,0,0.2), 0 0 20px ${booster.color}`
                 : `0 6px 0 #444, inset 0 -4px 0 rgba(0,0,0,0.2)`,
-              cursor: owned || isLoading || !isRegistered ? 'default' : 'pointer',
+              cursor: owned || isLoading ? 'default' : 'pointer',
               opacity: isLoading ? 0.5 : 1,
             }}
           >

@@ -1,18 +1,18 @@
-export const CONTRACT_ADDRESS = '0x063DbE127B7025780C5Bf2c7e2D3e236ebEE3fd8' as const;
+export const CONTRACT_ADDRESS = '0x2aDe42669D86BE3e5B22CD92e3F4481eD8c9eA93' as const;
 
 export const CONTRACT_ABI = [
   {
     "inputs": [{"internalType": "uint256", "name": "crystals", "type": "uint256"}],
-    "name": "submitGame",
+    "name": "playGame",
     "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "claimDailyReward",
     "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -57,13 +57,6 @@ export const CONTRACT_ABI = [
       {"internalType": "address[]", "name": "", "type": "address[]"},
       {"internalType": "uint256[]", "name": "", "type": "uint256[]"}
     ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getTotalPlayers",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
   }

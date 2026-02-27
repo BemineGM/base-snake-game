@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseEther } from 'viem';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../contracts/abi';
 
 type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
@@ -11,6 +12,7 @@ const GRID_SIZE = 12;
 const CELL_SIZE = 36;
 const GAME_SPEED = 280;
 const MAX_CRYSTALS = 10;
+const ACTION_PRICE = '0.00004';
 
 export default function Game() {
   const { address, isConnected } = useAccount();
@@ -22,6 +24,8 @@ export default function Game() {
   const [score, setScore] = useState(0);
   const [gameRunning, setGameRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const [waitingForPayment, setWaitingForPayment] = useState(false);
+  const [pendingScore, setPendingScore] = useState(0);
 
   const { data: playerData, refetch } = useReadContract({
     address: CONTRACT_ADDRESS,
@@ -44,18 +48,29 @@ export default function Game() {
   const currentMultiplier = Number(bestMultiplier) / 100;
   const canClaimDaily = canClaim ?? false;
 
-  const { writeContract: submitGame, isPending: isSubmitting, data: submitHash } = useWriteContract();
-  const { isLoading: isSubmitConfirming, isSuccess: isSubmitSuccess } = useWaitForTransactionReceipt({ hash: submitHash });
+  const { writeContract: playGame, isPending: isPlayPending, data: playHash } = useWriteContract();
+  const { isLoading: isPlayConfirming, isSuccess: isPlaySuccess } = useWaitForTransactionReceipt({ hash: playHash });
 
   const { writeContract: claimDaily, isPending: isDailyPending, data: dailyHash } = useWriteContract();
   const { isLoading: isDailyConfirming, isSuccess: isDailySuccess } = useWaitForTransactionReceipt({ hash: dailyHash });
 
+  // После успешной оплаты игры
   useEffect(() => {
-    if (isSubmitSuccess || isDailySuccess) {
+    if (isPlaySuccess) {
+      refetch();
+      refetchDaily();
+      setWaitingForPayment(false);
+      setGameOver(false);
+      setPendingScore(0);
+    }
+  }, [isPlaySuccess, refetch, refetchDaily]);
+
+  useEffect(() => {
+    if (isDailySuccess) {
       refetch();
       refetchDaily();
     }
-  }, [isSubmitSuccess, isDailySuccess, refetch, refetchDaily]);
+  }, [isDailySuccess, refetch, refetchDaily]);
 
   const generateInitialCrystals = useCallback(() => {
     const newCrystals: Position[] = [];
@@ -80,14 +95,31 @@ export default function Game() {
     return newCrystals;
   }, []);
 
+  // Начать игру — сразу запускаем, оплата при сохранении
   const startGame = () => {
     setSnake([{ x: 6, y: 6 }]);
     setDirection('RIGHT');
     setNextDirection('RIGHT');
     setScore(0);
     setGameOver(false);
+    setWaitingForPayment(false);
     setCrystals(generateInitialCrystals());
     setGameRunning(true);
+  };
+
+  // Сохранить и оплатить
+  const handleSaveAndPay = () => {
+    setPendingScore(score);
+    setWaitingForPayment(true);
+
+    playGame({
+      address: CONTRACT_ADDRESS,
+      abi: CONTRACT_ABI,
+      functionName: 'playGame',
+      args: [BigInt(score)],
+      value: parseEther(ACTION_PRICE),
+      gas: BigInt(200000),
+    });
   };
 
   const closeGameOver = () => {
@@ -176,21 +208,12 @@ export default function Game() {
     return () => clearInterval(gameLoop);
   }, [gameRunning, gameOver, nextDirection, crystals]);
 
-  const handleSubmitScore = () => {
-    submitGame({
-      address: CONTRACT_ADDRESS,
-      abi: CONTRACT_ABI,
-      functionName: 'submitGame',
-      args: [BigInt(score)],
-      gas: BigInt(200000),
-    });
-  };
-
   const handleClaimDaily = () => {
     claimDaily({
       address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
       functionName: 'claimDailyReward',
+      value: parseEther(ACTION_PRICE),
       gas: BigInt(200000),
     });
   };
@@ -222,7 +245,7 @@ export default function Game() {
 
   const displayScore = Math.min(score, MAX_CRYSTALS);
   const finalPoints = Math.floor(displayScore * currentMultiplier);
-  const isLoading = isSubmitting || isSubmitConfirming || isDailyPending || isDailyConfirming;
+  const isLoading = isPlayPending || isPlayConfirming || isDailyPending || isDailyConfirming;
   const nextDailyReward = Number(dailyStreak) + 1;
 
   return (
@@ -296,7 +319,7 @@ export default function Game() {
       <div className="flex gap-6 mt-8">
         <button
           onClick={startGame}
-          disabled={gameRunning}
+          disabled={gameRunning || isLoading}
           className="pixel-button text-sm"
         >
           ▶ PLAY
@@ -334,19 +357,19 @@ export default function Game() {
             }}
           >
             {/* Кнопка закрытия */}
-<button
-  onClick={closeGameOver}
-  className="absolute -top-3 -right-3 w-10 h-10 flex items-center justify-center pixel-text text-white hover:scale-110 transition-transform"
-  style={{
-    backgroundColor: '#E53E3E',
-    border: '3px solid #000',
-    borderRadius: '8px',
-    boxShadow: '0 3px 0 #000',
-    fontSize: '16px',
-  }}
->
-  ✕
-</button>
+            <button
+              onClick={closeGameOver}
+              className="absolute -top-3 -right-3 w-10 h-10 flex items-center justify-center pixel-text text-white hover:scale-110 transition-transform"
+              style={{
+                backgroundColor: '#E53E3E',
+                border: '3px solid #000',
+                borderRadius: '8px',
+                boxShadow: '0 3px 0 #000',
+                fontSize: '16px',
+              }}
+            >
+              ✕
+            </button>
 
             {/* Заголовок */}
             <div
@@ -383,15 +406,15 @@ export default function Game() {
             {/* Кнопки */}
             <div className="flex flex-col gap-4 w-full">
               <button
-                onClick={handleSubmitScore}
+                onClick={handleSaveAndPay}
                 disabled={isLoading || displayScore === 0}
                 className="pixel-button pixel-button-green text-xs w-full"
                 style={{ padding: '14px 20px' }}
               >
-                {isLoading ? '⏳ SAVING...' : '💾 SAVE SCORE'}
+                {isLoading ? '⏳ SAVING...' : '💾 SAVE (~1¢)'}
               </button>
 
-              {isSubmitSuccess && (
+              {isPlaySuccess && (
                 <p className="pixel-text text-[10px] text-green-400 text-center">✓ SAVED!</p>
               )}
 
