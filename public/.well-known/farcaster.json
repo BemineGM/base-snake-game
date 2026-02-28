@@ -11,6 +11,8 @@
     "homeUrl": "https://base-snake.netlify.app",
     "splashImageUrl": "https://base-snake.netlify.app/splash.png",
     "splashBackgroundColor": "#0052FF",
-    "webhookUrl": "https://base-snake.netlify.app/api/webhook"
+    "webhookUrl": "https://base-snake.netlify.app/api/webhook",
+    "primaryCategory": "games",
+    "tags": ["snake", "web3", "base", "arcade", "crypto"]
   }
 }
