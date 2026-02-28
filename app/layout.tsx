@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     images: [`${appUrl}/splash.png`],
   },
   other: {
+    "base:app_id": "69a1ed6d0504b72df703c1a5",
     "fc:frame": JSON.stringify({
       version: "next",
       imageUrl: `${appUrl}/splash.png`,
@@ -37,6 +38,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta name="base:app_id" content="69a1ed6d0504b72df703c1a5" />
+      </head>
       <body suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
