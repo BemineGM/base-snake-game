@@ -1,6 +1,7 @@
 'use client';
 
-import { useAccount, useConnect, useDisconnect, useReadContract } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useReadContract, useSwitchChain, useChainId } from 'wagmi';
+import { base } from 'wagmi/chains';
 import Game from './components/Game';
 import Leaderboard from './components/Leaderboard';
 import Boosters from './components/Boosters';
@@ -10,6 +11,10 @@ export default function Home() {
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
+  const { switchChain } = useSwitchChain();
+  const chainId = useChainId();
+
+  const isWrongNetwork = isConnected && chainId !== base.id;
 
   const injectedConnector = connectors.find(c => c.id === 'injected') || connectors[0];
 
@@ -26,6 +31,10 @@ export default function Home() {
     }
   };
 
+  const handleSwitchNetwork = () => {
+    switchChain({ chainId: base.id });
+  };
+
   const isRegistered = playerData?.[0] ?? false;
   const totalPoints = playerData?.[1] ?? BigInt(0);
 
@@ -36,7 +45,7 @@ export default function Home() {
         <h1 className="text-xl pixel-text-outline text-white" style={{ letterSpacing: '0.15em' }}>🐍 BASE SNAKE</h1>
 
         <div className="flex items-center gap-6">
-          {isConnected && isRegistered && (
+          {isConnected && !isWrongNetwork && isRegistered && (
             <div className="glass-card px-4 py-2">
               <span className="pixel-text text-[10px] text-white">POINTS: </span>
               <span className="pixel-text text-lg text-yellow-300">{totalPoints.toString()}</span>
@@ -73,6 +82,20 @@ export default function Home() {
             className="pixel-button text-lg"
           >
             ▶ PLAY
+          </button>
+        </div>
+      ) : isWrongNetwork ? (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] gap-6">
+          <div className="text-6xl">⚠️</div>
+          <h2 className="text-2xl pixel-text-outline text-white text-center">WRONG NETWORK</h2>
+          <p className="glass-card p-4 text-center text-white pixel-text text-[10px]">
+            Please switch to Base network to play
+          </p>
+          <button
+            onClick={handleSwitchNetwork}
+            className="pixel-button text-lg"
+          >
+            🔄 SWITCH TO BASE
           </button>
         </div>
       ) : (
