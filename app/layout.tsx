@@ -10,10 +10,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Base Snake",
     description: "Web3 Snake Game on Base",
-    images: [`${appUrl}/splash.png`],
+    images: [`${appUrl}/hero.png`],
   },
   other: {
     "base:app_id": "69a1ed6d0504b72df703c1a5",
+    "base:builder_code": "bc_sgvdfmla",
     "fc:frame": JSON.stringify({
       version: "next",
       imageUrl: `${appUrl}/splash.png`,
@@ -40,6 +41,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="base:app_id" content="69a1ed6d0504b72df703c1a5" />
+        <meta name="base:builder_code" content="bc_sgvdfmla" />
+        <link rel="icon" href="/favicon.ico" />
       </head>
       <body suppressHydrationWarning>
         <Providers>{children}</Providers>
